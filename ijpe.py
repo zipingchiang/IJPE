@@ -1,7 +1,4 @@
-# ============================================================
-# Optional Colab installation
-# ============================================================
-# !pip install -q scikit-learn==1.5.2 gplearn==0.4.2 graphviz
+!pip install -q scikit-learn==1.5.2 gplearn==0.4.2 graphviz
 
 import os
 import random
@@ -1477,9 +1474,6 @@ def run_explainable_models(df, group_name="Type 1", test_size=0.2, random_state=
     print("\nDecision tree sensitivity check")
     print(tree_sens.to_string(index=False))
 
-    # PART D one-way sensitivity curve generation has been removed.
-    # Therefore, no /content/sensitivity_outputs_xai folder or sensitivity curve figures are generated.
-
     plot_pred_vs_true(y_test, y_pred_tree, f"{group_name} - Decision Tree")
     plot_residuals(y_test, y_pred_tree, f"{group_name} - Decision Tree Residuals")
 
@@ -1557,9 +1551,6 @@ def main():
     data_t1 = build_features_train_test(df_type1, test_size=0.2, random_state=SEED)
     data_t2 = build_features_train_test(df_type2, test_size=0.2, random_state=SEED)
 
-    # ------------------------------------------------------------
-    # Save model explanation diagrams for manuscript use
-    # ------------------------------------------------------------
     input_len = data_t1["X_train"].shape[1]
 
     save_residual_block_diagram(
@@ -1663,10 +1654,6 @@ def main():
 
     summary_dl.to_csv("/content/resnet_1dcnn_transfer_summary.csv", index=False)
     print("\nSaved: /content/resnet_1dcnn_transfer_summary.csv")
-
-    # PART C-1 transfer-learning sensitivity analysis has been removed.
-    # Therefore, no /content/sensitivity_outputs_dl folder or
-    # /content/transfer_t1_to_t2_huber_sensitivity_summary.csv file is generated.
 
     y_true, y_pred = saved_predictions["Type2_direct_huber"]
     save_prediction_csv(y_true, y_pred, "/content/type2_direct_huber_predictions.csv")
