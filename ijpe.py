@@ -47,10 +47,14 @@ RAW_FEATURE_COLS = ["Mr", "SN", "ALT", "ESALs"]
 # ============================================================
 # TEX-only manuscript output control
 # ============================================================
+# Version v3: run all main modelling parts, but suppress non-manuscript sensitivity figures.
 # Default mode: run all main modelling parts, but keep only values, tables, and figure files
 # that appear in the TEX manuscript after the run. Core modelling functions are kept unchanged.
 RUN_FULL_PIPELINE = True
 TEX_ONLY_OUTPUT = True
+# In TEX-only mode, sensitivity analyses are still computed in memory,
+# but their per-feature CSV and PNG outputs are not written.
+SAVE_SENSITIVITY_OUTPUTS = not TEX_ONLY_OUTPUT
 MANUSCRIPT_OUTPUT_DIR = "/content"
 
 TEX_FIGURE_FILENAMES = {
@@ -1587,7 +1591,9 @@ def plot_one_way_sensitivity(df_sens, feature_name, title, save_path=None):
 
 def run_sensitivity_suite_dl(model, poly, scaler, df_reference, group_name="Transfer_T1_to_T2_Huber",
                              output_dir="/content/sensitivity_outputs_dl", n_points=100, device=device):
-    os.makedirs(output_dir, exist_ok=True)
+    save_outputs = SAVE_SENSITIVITY_OUTPUTS
+    if save_outputs:
+        os.makedirs(output_dir, exist_ok=True)
     base_values = {
         "Mr": float(df_reference["Mr"].median()),
         "SN": float(df_reference["SN"].median()),
@@ -1608,15 +1614,16 @@ def run_sensitivity_suite_dl(model, poly, scaler, df_reference, group_name="Tran
             feature_name=feat, feature_range=(feat_min, feat_max), n_points=n_points, device=device
         )
         curve_data[feat] = df_sens
-        csv_path = os.path.join(output_dir, f"{group_name}_{feat}_sensitivity.csv")
-        fig_path = os.path.join(output_dir, f"{group_name}_{feat}_sensitivity.png")
-        df_sens.to_csv(csv_path, index=False)
-        print(f"Saved data: {csv_path}")
-        plot_one_way_sensitivity(
-            df_sens=df_sens, feature_name=feat,
-            title=f"{group_name}: sensitivity of PCI to {feat}",
-            save_path=fig_path
-        )
+        if save_outputs:
+            csv_path = os.path.join(output_dir, f"{group_name}_{feat}_sensitivity.csv")
+            fig_path = os.path.join(output_dir, f"{group_name}_{feat}_sensitivity.png")
+            df_sens.to_csv(csv_path, index=False)
+            print(f"Saved data: {csv_path}")
+            plot_one_way_sensitivity(
+                df_sens=df_sens, feature_name=feat,
+                title=f"{group_name}: sensitivity of PCI to {feat}",
+                save_path=fig_path
+            )
         metrics = compute_sensitivity_metrics(df_sens, feat)
         metrics["Base_Mr"] = base_values["Mr"]
         metrics["Base_SN"] = base_values["SN"]
@@ -1624,9 +1631,12 @@ def run_sensitivity_suite_dl(model, poly, scaler, df_reference, group_name="Tran
         metrics["Base_ESALs"] = base_values["ESALs"]
         summary_rows.append(metrics)
     summary_df = pd.DataFrame(summary_rows)
-    summary_csv = os.path.join(output_dir, f"{group_name}_sensitivity_summary.csv")
-    summary_df.to_csv(summary_csv, index=False)
-    print(f"Saved summary: {summary_csv}")
+    if save_outputs:
+        summary_csv = os.path.join(output_dir, f"{group_name}_sensitivity_summary.csv")
+        summary_df.to_csv(summary_csv, index=False)
+        print(f"Saved summary: {summary_csv}")
+    elif TEX_ONLY_OUTPUT:
+        print("Sensitivity curves were computed in memory only; per-feature sensitivity PNG/CSV outputs were not written because they are not cited in the TEX manuscript.")
     print(summary_df.to_string(index=False))
     return {"baseline": base_values, "summary": summary_df, "curves": curve_data}
 
@@ -1705,7 +1715,9 @@ def plot_one_way_sensitivity_xai(df_sens, feature_name, title, save_path=None):
 
 
 def run_sensitivity_suite_xai(model, scaler, df_reference, group_name, model_name, output_dir="/content/sensitivity_outputs_xai", n_points=100):
-    os.makedirs(output_dir, exist_ok=True)
+    save_outputs = SAVE_SENSITIVITY_OUTPUTS
+    if save_outputs:
+        os.makedirs(output_dir, exist_ok=True)
     safe_group = group_name.replace(" ", "_").replace("(", "").replace(")", "").replace("/", "_")
     safe_model = model_name.replace(" ", "_")
     base_values = {
@@ -1724,14 +1736,15 @@ def run_sensitivity_suite_xai(model, scaler, df_reference, group_name, model_nam
             feature_name=feat, feature_range=(feat_min, feat_max), n_points=n_points
         )
         curve_data[feat] = df_sens
-        csv_path = os.path.join(output_dir, f"{safe_group}_{safe_model}_{feat}_sensitivity.csv")
-        fig_path = os.path.join(output_dir, f"{safe_group}_{safe_model}_{feat}_sensitivity.png")
-        df_sens.to_csv(csv_path, index=False)
-        plot_one_way_sensitivity_xai(
-            df_sens, feat,
-            f"{group_name} - {model_name} sensitivity to {feat}",
-            save_path=fig_path
-        )
+        if save_outputs:
+            csv_path = os.path.join(output_dir, f"{safe_group}_{safe_model}_{feat}_sensitivity.csv")
+            fig_path = os.path.join(output_dir, f"{safe_group}_{safe_model}_{feat}_sensitivity.png")
+            df_sens.to_csv(csv_path, index=False)
+            plot_one_way_sensitivity_xai(
+                df_sens, feat,
+                f"{group_name} - {model_name} sensitivity to {feat}",
+                save_path=fig_path
+            )
         metrics = compute_sensitivity_metrics(df_sens, feat)
         metrics["Base_Mr"] = base_values["Mr"]
         metrics["Base_SN"] = base_values["SN"]
@@ -1741,9 +1754,12 @@ def run_sensitivity_suite_xai(model, scaler, df_reference, group_name, model_nam
         metrics["Model"] = model_name
         summary_rows.append(metrics)
     summary_df = pd.DataFrame(summary_rows)
-    summary_path = os.path.join(output_dir, f"{safe_group}_{safe_model}_sensitivity_summary.csv")
-    summary_df.to_csv(summary_path, index=False)
-    print(f"Saved summary: {summary_path}")
+    if save_outputs:
+        summary_path = os.path.join(output_dir, f"{safe_group}_{safe_model}_sensitivity_summary.csv")
+        summary_df.to_csv(summary_path, index=False)
+        print(f"Saved summary: {summary_path}")
+    elif TEX_ONLY_OUTPUT:
+        print(f"{group_name} - {model_name} sensitivity curves were computed in memory only; per-feature sensitivity PNG/CSV outputs were not written because they are not cited in the TEX manuscript.")
     return {"baseline": base_values, "summary": summary_df, "curves": curve_data}
 
 
@@ -2030,8 +2046,11 @@ def run_full_pipeline():
             n_points=100,
             device=device
         )
-        dl_sens_out["summary"].to_csv("/content/transfer_t1_to_t2_huber_sensitivity_summary.csv", index=False)
-        print("\nSaved: /content/transfer_t1_to_t2_huber_sensitivity_summary.csv")
+        if not TEX_ONLY_OUTPUT:
+            dl_sens_out["summary"].to_csv("/content/transfer_t1_to_t2_huber_sensitivity_summary.csv", index=False)
+            print("\nSaved: /content/transfer_t1_to_t2_huber_sensitivity_summary.csv")
+        else:
+            print("\nTransfer sensitivity summary was computed in memory only; it was not written because it is not cited in the TEX manuscript.")
 
     y_true, y_pred = saved_predictions["Type2_direct_huber"]
     save_prediction_csv(y_true, y_pred, "/content/type2_direct_huber_predictions.csv")
@@ -2113,6 +2132,10 @@ def run_full_pipeline():
 
 def main():
     """Run all modelling parts, then retain only outputs present in the TEX manuscript."""
+    if TEX_ONLY_OUTPUT:
+        # Remove old non-manuscript folders from previous notebook runs before starting,
+        # so stale sensitivity figures do not remain visible during the next run.
+        cleanup_non_tex_generated_outputs(output_dir=MANUSCRIPT_OUTPUT_DIR)
     if RUN_FULL_PIPELINE:
         run_full_pipeline()
     written_tables = export_tex_only_outputs(output_dir=MANUSCRIPT_OUTPUT_DIR)
